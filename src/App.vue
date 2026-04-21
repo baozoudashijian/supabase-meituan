@@ -1,6 +1,6 @@
 <script setup>
 import { computed, h, reactive, ref } from 'vue'
-import { NButton, NSpace, useMessage } from 'naive-ui'
+import { NButton, NSpace, NTag, useMessage } from 'naive-ui'
 import { supabase, isSupabaseConfigured } from './lib/supabase'
 
 const message = useMessage()
@@ -16,6 +16,9 @@ const statusType = computed(() => (isSupabaseConfigured ? 'success' : 'warning')
 const modalTitle = computed(() => (editingId.value ? '编辑订单' : '新建订单'))
 
 const formState = reactive(createEmptyForm())
+const platformOptions = [
+  { label: '美团', value: '1' }
+]
 
 const columns = [
   {
@@ -28,7 +31,7 @@ const columns = [
     key: 'platform',
     width: 100,
     render(row) {
-      return row.platform || '-'
+      return formatPlatform(row.platform)
     }
   },
   {
@@ -63,6 +66,42 @@ const columns = [
     width: 100,
     render(row) {
       return row.is_late ? '是' : '否'
+    }
+  },
+  {
+    title: '门禁',
+    key: 'has_access_control',
+    width: 100,
+    render(row) {
+      return h(
+        NTag,
+        {
+          type: row.has_access_control ? 'error' : 'success',
+          round: true,
+          size: 'small'
+        },
+        {
+          default: () => (row.has_access_control ? '有门禁' : '无门禁')
+        }
+      )
+    }
+  },
+  {
+    title: '可进小区',
+    key: 'can_enter_community',
+    width: 100,
+    render(row) {
+      return h(
+        NTag,
+        {
+          type: row.can_enter_community ? 'success' : 'error',
+          round: true,
+          size: 'small'
+        },
+        {
+          default: () => (row.can_enter_community ? '可进入' : '不可进')
+        }
+      )
     }
   },
   {
@@ -120,7 +159,7 @@ const columns = [
 
 function createEmptyForm() {
   return {
-    platform: '',
+    platform: null,
     pickup_address_short: '',
     pickup_address: '',
     delivery_address: '',
@@ -144,7 +183,7 @@ function resetForm() {
 
 function populateForm(row) {
   Object.assign(formState, {
-    platform: row.platform || '',
+    platform: row.platform ? String(row.platform) : null,
     pickup_address_short: row.pickup_address_short || '',
     pickup_address: row.pickup_address || '',
     delivery_address: row.delivery_address || '',
@@ -184,6 +223,11 @@ function formatMoney(value) {
   return `¥${Number(value).toFixed(2)}`
 }
 
+function formatPlatform(value) {
+  if (value === '1' || value === 1) return '美团'
+  return value || '-'
+}
+
 function openCreateModal() {
   editingId.value = null
   resetForm()
@@ -200,7 +244,7 @@ function openEditModal(row) {
 
 function buildPayload() {
   return {
-    platform: formState.platform.trim(),
+    platform: formState.platform || '',
     pickup_address_short: formState.pickup_address_short.trim(),
     pickup_address: formState.pickup_address.trim(),
     delivery_address: formState.delivery_address.trim() || null,
@@ -365,8 +409,14 @@ loadOrders()
       >
         <n-form label-placement="top" class="order-form">
           <div class="form-grid">
-            <n-form-item label="平台">
-              <n-input v-model:value="formState.platform" placeholder="例如 美团 / 饿了么" />
+            <n-form-item label="投放平台">
+              <n-select
+                v-model:value="formState.platform"
+                :options="platformOptions"
+                class="field-full"
+                clearable
+                placeholder="请选择投放平台"
+              />
             </n-form-item>
 
             <n-form-item label="配送费" required>
